@@ -1,9 +1,9 @@
-# SwipeDragHelper
+# Infinite-recycler-adapter
 
-An Android Library that provide drag & drop and swipe-to-dismiss with list state maintain functionality for RecyclerView items
+An Android Library that dynamically load more items when scroll to end with bottom ProgressBar
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/appsfeature/swipe-drag-helper/master/screenshots/preview_sample.gif" alt="Preview 1" width="300" />
+  <img src="https://raw.githubusercontent.com/appsfeature/infinite-recycler-adapter/master/screenshots/preview_sample.gif" alt="Preview 1" width="300" />
 </p>
 
 ## Setup Project
@@ -26,11 +26,11 @@ Add this to your project build.gradle
 
 Module-level build.gradle (<module>/build.gradle):
 
-#### [![](https://jitpack.io/v/appsfeature/swipe-drag-helper.svg)](https://jitpack.io/#appsfeature/swipe-drag-helper)
+#### [![](https://jitpack.io/v/appsfeature/infinite-recycler-adapter.svg)](https://jitpack.io/#appsfeature/infinite-recycler-adapter)
 ```gradle
 
 dependencies {
-    implementation 'com.github.appsfeature:swipe-drag-helper:x.y'
+    implementation 'com.github.appsfeature:infinite-recycler-adapter:x.y'
 }
 ```
 
@@ -39,39 +39,33 @@ In your activity class:
 ```java
 public class ExampleActivity extends AppCompatActivity {
 
-    private List<User> usersList;
-    private AdvanceListAdapter adapter;
-    private SwipeDragHelper swipeAndDragHelper;
-
+    
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_user_list);
 
-        RecyclerView userRecyclerView = findViewById(R.id.recyclerview_user_list);
-        userRecyclerView.setLayoutManager(new LinearLayoutManager(this));
-        adapter = new AdvanceListAdapter(this);
-        swipeAndDragHelper = SwipeDragHelper.Builder(userRecyclerView, adapter)
-                .setEnableResetSavedList(BuildConfig.VERSION_NAME)
-                .setEnableSwipeOption(true);
-        adapter.setSwipeDragHelper(swipeAndDragHelper);
-        userRecyclerView.setAdapter(adapter);
+        RecyclerView recyclerView = findViewById(R.id.recycler_view);
+        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        ContactAdapter mAdapter = new ContactAdapter(contacts, this);
+        recyclerView.setAdapter(mAdapter);
 
-        usersList = getHomePageList();
-        adapter.setUserList(usersList);
-    }
-
-
-    public List<User> getHomePageList() {
-        List<User> homeList = swipeAndDragHelper.getListUtil().getSavedList(new TypeToken<List<User>>() {
+        mAdapter.setOnLoadMoreListener(new OnLoadMoreItems() {
+            @Override
+            public void onLoadMore() {
+                getMoreDataFromServer();
+            }
         });
-        if (homeList == null) {
-            UsersData usersData = new UsersData();
-            homeList = usersData.getUsersList();
-            swipeAndDragHelper.getListUtil().saveHomePageList(this, homeList, new TypeToken<List<User>>() {
-            });
+    } 
+    
+    private void getMoreDataFromServer() {
+        //after getting response from server
+        List<String> response = new ArrayList<>();//"Getting data successfully"
+        if(response!=null && response.size()>0){
+            mAdapter.finish();
+        }else {
+            mAdapter.stop();
         }
-        return homeList;
     }
 
 
@@ -82,47 +76,42 @@ public class ExampleActivity extends AppCompatActivity {
 In your Adapter class:
 #### Usage method
 ```java
-public class UserListAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> implements
-        CopySwipeDragHelper.SwipeDragActionListener {
+public class ContactAdapter extends LoadMoreAdapter {
+    private Activity activity;
+    private List<Contact> contacts;
 
-        ...
-        ...
-
-    @Override
-    @SuppressLint("ClickableViewAccessibility")
-    public void onBindViewHolder(@NonNull final RecyclerView.ViewHolder holder, int position) {
-        ...
-        ...
-        ((UserViewHolder) holder).itemView.setOnTouchListener(new View.OnTouchListener() {
-                @Override
-                public boolean onTouch(View v, MotionEvent event) {
-                    if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
-                        swipeAndDragHelper.getTouchHelper().startDrag(holder);
-                    }
-                    return false;
-                }
-            });
+    public ContactAdapter(List<Contact> contacts, Activity activity) {
+        super(contacts, R.layout.item_loading);
+        this.contacts = contacts;
+        this.activity = activity;
     }
 
     @Override
-    public void onViewMoved(RecyclerView.ViewHolder viewHolder, int oldPosition, int newPosition) {
-        User targetUser = usersList.get(oldPosition);
-        User user = new User(targetUser);
-        usersList.remove(oldPosition);
-        usersList.add(newPosition, user);
-        notifyItemMoved(oldPosition, newPosition);
+    protected RecyclerView.ViewHolder onAbstractCreateViewHolder(ViewGroup parent, int var2) {
+        View view = LayoutInflater.from(activity).inflate(R.layout.item_recycler_view_row, parent, false);
+        return new UserViewHolder(view);
     }
 
     @Override
-    public void onViewSwiped(int position) {
-        usersList.remove(position);
-        notifyItemRemoved(position);
+    protected void onAbstractBindViewHolder(RecyclerView.ViewHolder holder, int position) {
+        if (holder instanceof UserViewHolder) {
+            Contact contact = contacts.get(position);
+            UserViewHolder userViewHolder = (UserViewHolder) holder;
+            userViewHolder.phone.setText(contact.getEmail());
+            userViewHolder.email.setText(contact.getPhone());
+        }
     }
 
-    private CopySwipeDragHelper swipeAndDragHelper;
 
-    public void setSwipeAndDragHelper(CopySwipeDragHelper swipeAndDragHelper) {
-        this.swipeAndDragHelper = swipeAndDragHelper;
+    private class UserViewHolder extends RecyclerView.ViewHolder {
+        TextView phone;
+        TextView email;
+
+        UserViewHolder(View view) {
+            super(view);
+            phone = view.findViewById(R.id.txt_phone);
+            email = view.findViewById(R.id.txt_email);
+        }
     }
 }
 
