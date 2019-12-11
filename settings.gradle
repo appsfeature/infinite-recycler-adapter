@@ -1,0 +1,2 @@
+include ':app', ':infinite'
+rootProject.name='InfiniteRecyclarAdapter'
